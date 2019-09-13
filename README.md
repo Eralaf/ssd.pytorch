@@ -20,6 +20,20 @@ A [PyTorch](http://pytorch.org/) implementation of [Single Shot MultiBox Detecto
 &nbsp;
 
 ## Installation
+
+====
+run the following :
+```Shell
+# Creating your anaconda environment
+conda create --name <your_environment_name> python=3.6
+# Installing pytorch (if CPU only)
+conda install pytorch torchvision cpuonly -c pytorch
+# Installing pytorch (if gpu)
+conda install pytorch torchvision cudatoolkit=<your_cuda_version(9.2 or 10.0)> -c pytorch
+```
+====
+
+
 - Install [PyTorch](http://pytorch.org/) by selecting your environment on the website and running the appropriate command.
 - Clone this repository.
   * Note: We currently only support Python 3+.
@@ -91,7 +105,7 @@ To evaluate a trained network:
 python eval.py
 ```
 
-You can specify the parameters listed in the `eval.py` file by flagging them or manually changing them.  
+You can specify the parameters listed in the `eval.py` file by flagging them or manually changing them.
 
 
 <img align="left" src= "https://github.com/amdegroot/ssd.pytorch/blob/master/doc/detection_examples.png">
@@ -114,7 +128,7 @@ You can specify the parameters listed in the `eval.py` file by flagging them or 
 ### Use a pre-trained SSD network for detection
 
 #### Download a pre-trained network
-- We are trying to provide PyTorch `state_dicts` (dict of weight tensors) of the latest SSD model definitions trained on different datasets.  
+- We are trying to provide PyTorch `state_dicts` (dict of weight tensors) of the latest SSD model definitions trained on different datasets.
 - Currently, we provide the following PyTorch models:
     * SSD300 trained on VOC0712 (newest PyTorch weights)
       - https://s3.amazonaws.com/amdegroot-models/ssd300_mAP_77.43_v2.pth
