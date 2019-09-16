@@ -3,7 +3,13 @@
 Original author: Francisco Massa
 https://github.com/fmassa/vision/blob/voc_dataset/torchvision/datasets/voc.py
 
-Updated by: Ellis Brown, Max deGroot, Florian Napierala
+Updated by: Ellis Brown, Max deGroot
+
+================================
+Based on the file `voc0712.py`
+
+Developped by Florian Napierala
+================================
 """
 
 import torch
@@ -25,7 +31,7 @@ else:
 
 # /!\ TODO put these parameters in a config file rather than a python script...
 CLASSES = (  # always index 0
-          'numero','pantographe')
+          'numero','pantographe') # TODO change the classes.
 
 # note: if you used our download scripts, this should be right
 P_ROOT = osp.join(HOME, "data/cafeine/")
