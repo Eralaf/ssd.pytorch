@@ -26,6 +26,7 @@ voc = {
     'name': 'VOC',
 }
 
+# Aspects ratios 1/3 & 1/2 are specified (not explicitly), go see the comments in prior_box.py
 personnal = {
     'num_classes':   3,
     'lr_steps':      (80000, 100000, 120000),
