@@ -112,8 +112,14 @@ def match(threshold, truths, priors, variances, labels, loc_t, conf_t, idx):
     # TODO refactor: index  best_prior_idx with long tensor
     # ensure every gt matches with its prior of max overlap
 
+    # get indexes of all GT boxes which are assigned to priors
+    truths_assigned = tensor.unique(best_truth_idx)
+
+    # if j-th GT box is not assigned, then force the GT box to be matched with
+    # a prior which has highest IoU with it.
     for j in range(best_prior_idx.size(0)):
-        best_truth_idx[best_prior_idx[j]] = j
+        if j not in truths_assigned:
+            best_truth_idx[best_prior_idx[j]] = j
 
     matches = truths[best_truth_idx]     # Shape: [num_priors,4]
     conf    = labels[best_truth_idx] + 1 # Shape: [num_priors]
