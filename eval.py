@@ -44,7 +44,7 @@ parser.add_argument('--confidence_threshold', default=0.01, type=float,
                     help='Detection confidence threshold')
 parser.add_argument('--top_k', default=5, type=int,
                     help='Further restrict the number of predictions to parse')
-parser.add_argument('--cuda', default=True, type=str2bool,
+parser.add_argument('--cuda', default=False, type=str2bool,
                     help='Use cuda to train model')
 parser.add_argument('--voc_root', default=VOC_ROOT,
                     help='Location of VOC root directory')
@@ -381,9 +381,9 @@ def test_net(save_folder, net, cuda, dataset, transform, top_k,
         x = Variable(im.unsqueeze(0))
         if args.cuda:
             x = x.cuda()
-        _t['im_detect'].tic()
-        detections = net(x).data
-        detect_time = _t['im_detect'].toc(average=False)
+        _t['im_detect'].tic()                            # Start Time ! #
+        detections = net(x).data                         ################
+        detect_time = _t['im_detect'].toc(average=False) #  End Time  ! #
 
         # skip j = 0, because it's the background class
         for j in range(1, detections.size(1)):
@@ -422,7 +422,7 @@ if __name__ == '__main__':
     # load net
     num_classes = len(labelmap) + 1                      # +1 for background
     net = build_ssd('test', 300, num_classes)            # initialize SSD
-    net.load_state_dict(torch.load(args.trained_model))
+    net.load_state_dict(torch.load(args.trained_model,map_location='cpu')) # remove the map_location parameter if GPU
     net.eval()
     print('Finished loading model!')
     # load data
