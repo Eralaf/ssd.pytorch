@@ -9,8 +9,8 @@ import torch
 import torch.nn as nn
 import torch.backends.cudnn as cudnn
 from torch.autograd import Variable
-from data import VOC_ROOT, VOCAnnotationTransform, VOCDetection, BaseTransform
-from data import VOC_CLASSES as labelmap
+from data import P_ROOT, VOCAnnotationTransform, PersonnalDetection, BaseTransform
+from data import CLASSES as labelmap
 import torch.utils.data as data
 
 from ssd import build_ssd
@@ -26,31 +26,22 @@ import cv2
 if sys.version_info[0] == 2:
     import xml.etree.cElementTree as ET
 else:
-    import xml.etree.ElementTree  as ET
+    import xml.etree.ElementTree as ET
 
 
 def str2bool(v):
-    """ Converting String to Boolean """
     return v.lower() in ("yes", "true", "t", "1")
 
 
-parser = argparse.ArgumentParser(
-    description='Single Shot MultiBox Detector Evaluation')
-parser.add_argument('--trained_model',
-                    default='weights/ssd300_mAP_77.43_v2.pth', type=str,
-                    help='Trained state_dict file path to open')
-parser.add_argument('--save_folder', default='eval/', type=str,
-                    help='File path to save results')
-parser.add_argument('--confidence_threshold', default=0.01, type=float,
-                    help='Detection confidence threshold')
-parser.add_argument('--top_k', default=5, type=int,
-                    help='Further restrict the number of predictions to parse')
-parser.add_argument('--cuda', default=False, type=str2bool,
-                    help='Use cuda to train model')
-parser.add_argument('--voc_root', default=VOC_ROOT,
-                    help='Location of VOC root directory')
-parser.add_argument('--cleanup', default=True, type=str2bool,
-                    help='Cleanup and remove results files following eval')
+parser = argparse.ArgumentParser(description='Single Shot MultiBox Detector Evaluation')
+
+parser.add_argument('--trained_model',        default='weights/ssd300_mAP_77.43_v2.pth', type=str,      help='Trained state_dict file path to open')
+parser.add_argument('--save_folder',          default='eval/',                           type=str,      help='File path to save results')
+parser.add_argument('--confidence_threshold', default=0.01,                              type=float,    help='Detection confidence threshold')
+parser.add_argument('--top_k',                default=5,                                 type=int,      help='Further restrict the number of predictions to parse')
+parser.add_argument('--cuda',                 default=False,                             type=str2bool, help='Use cuda to train model')
+parser.add_argument('--p_root',               default=P_ROOT,                                           help='Location of VOC root directory')
+parser.add_argument('--cleanup',              default=True,                              type=str2bool, help='Cleanup and remove results files following eval')
 
 args = parser.parse_args()
 
@@ -67,14 +58,14 @@ if torch.cuda.is_available():
 else:
     torch.set_default_tensor_type('torch.FloatTensor')
 
-annopath = os.path.join(args.voc_root, 'VOC2007', 'Annotations', '%s.xml')
-imgpath = os.path.join(args.voc_root, 'VOC2007', 'JPEGImages', '%s.jpg')
-imgsetpath = os.path.join(args.voc_root, 'VOC2007', 'ImageSets',
-                          'Main', '{:s}.txt')
-YEAR = '2007'
-devkit_path = args.voc_root + 'VOC' + YEAR
-dataset_mean = (104, 117, 123)
-set_type = 'test'
+annopath     = os.path.join(args.p_root, 'Annotations', '%s.xml')
+imgpath      = os.path.join(args.p_root, 'Images',      '%s.jpg')
+imgsetpath   = os.path.join(args.p_root, 'VOC2007',     'ImageSets', 'Main', '{:s}.txt')
+p_path       = args.p_root
+
+dataset_mean = (104, 117, 123) # Need to change this according to the dataset.
+
+set_type     = 'test'
 
 
 class Timer(object):
@@ -121,7 +112,6 @@ def parse_rec(filename):
 
     return objects
 
-
 def get_output_dir(name, phase):
     """Return the directory where experimental artifacts are placed.
     If the directory does not exist, it is created.
@@ -133,16 +123,14 @@ def get_output_dir(name, phase):
         os.makedirs(filedir)
     return filedir
 
-
 def get_voc_results_file_template(image_set, cls):
     # VOCdevkit/VOC2007/results/det_test_aeroplane.txt
     filename = 'det_' + image_set + '_%s.txt' % (cls)
-    filedir = os.path.join(devkit_path, 'results')
+    filedir = os.path.join(p_path, 'results')
     if not os.path.exists(filedir):
         os.makedirs(filedir)
     path = os.path.join(filedir, filename)
     return path
-
 
 def write_voc_results_file(all_boxes, dataset):
     for cls_ind, cls in enumerate(labelmap):
@@ -162,7 +150,7 @@ def write_voc_results_file(all_boxes, dataset):
 
 
 def do_python_eval(output_dir='output', use_07=True):
-    cachedir = os.path.join(devkit_path, 'annotations_cache')
+    cachedir = os.path.join(p_path, 'annotations_cache')
     aps = []
     # The PASCAL VOC metric changed in 2010
     use_07_metric = use_07
@@ -239,23 +227,23 @@ def voc_eval(detpath,
                            classname,
                            [ovthresh],
                            [use_07_metric])
-Top level function that does the PASCAL VOC evaluation.
-detpath: Path to detections
-   detpath.format(classname) should produce the detection results file.
-annopath: Path to annotations
-   annopath.format(imagename) should be the xml annotations file.
-imagesetfile: Text file containing the list of images, one image per line.
-classname: Category name (duh)
-cachedir: Directory for caching the annotations
-[ovthresh]: Overlap threshold (default = 0.5)
-[use_07_metric]: Whether to use VOC07's 11 point AP computation
-   (default True)
-"""
-# assumes detections are in detpath.format(classname)
-# assumes annotations are in annopath.format(imagename)
-# assumes imagesetfile is a text file with each line an image name
-# cachedir caches the annotations in a pickle file
-# first load gt
+        Top level function that does the PASCAL VOC evaluation.
+        detpath: Path to detections
+        detpath.format(classname) should produce the detection results file.
+        annopath: Path to annotations
+        annopath.format(imagename) should be the xml annotations file.
+        imagesetfile: Text file containing the list of images, one image per line.
+        classname: Category name (duh)
+        cachedir: Directory for caching the annotations
+        [ovthresh]: Overlap threshold (default = 0.5)
+        [use_07_metric]: Whether to use VOC07's 11 point AP computation
+        (default True)
+    """
+    # assumes detections are in detpath.format(classname)
+    # assumes annotations are in annopath.format(imagename)
+    # assumes imagesetfile is a text file with each line an image name
+    # cachedir caches the annotations in a pickle file
+    # first load gt
     if not os.path.isdir(cachedir):
         os.mkdir(cachedir)
     cachefile = os.path.join(cachedir, 'annots.pkl')
@@ -297,7 +285,7 @@ cachedir: Directory for caching the annotations
     detfile = detpath.format(classname)
     with open(detfile, 'r') as f:
         lines = f.readlines()
-    if any(lines) == 1:
+    if any(lines) == 1: # si lines n'est pas vide
 
         splitlines = [x.strip().split(' ') for x in lines]
         image_ids = [x[0] for x in splitlines]
@@ -373,8 +361,8 @@ def test_net(save_folder, net, cuda, dataset, transform, top_k,
 
     # timers
     _t = {'im_detect': Timer(), 'misc': Timer()}
-    output_dir = get_output_dir('ssd300_120000', set_type)
-    det_file = os.path.join(output_dir, 'detections.pkl')
+    output_dir = get_output_dir('ssd300_120000', set_type) ########################################
+    det_file = os.path.join(output_dir, 'detections.pkl')  ########################################
 
     for i in range(num_images):
         im, gt, h, w = dataset.pull_item(i)
@@ -423,13 +411,20 @@ if __name__ == '__main__':
     # load net
     num_classes = len(labelmap) + 1                      # +1 for background
     net = build_ssd('test', 300, num_classes)            # initialize SSD
-    net.load_state_dict(torch.load(args.trained_model,map_location='cpu')) # remove the map_location parameter if GPU
+    net.load_state_dict(torch.load(args.trained_model,map_location='cpu'))
     net.eval()
     print('Finished loading model!')
     # load data
-    dataset = VOCDetection(args.voc_root, [('2007', set_type)],
+    """
+    dataset = VOCDetection(args.p_root, [('2007', set_type)],
                            BaseTransform(300, dataset_mean),
                            VOCAnnotationTransform())
+    """
+    dataset = PersonnalDetection(args.p_root,
+                                 extension        = "jpg",
+                                 transform        = BaseTransform(300, dataset_mean),
+                                 target_transform = PersonnalVOCAnnotationTransform(),
+                                 dataset_name     = 'cafeine'):
     if args.cuda:
         net = net.cuda()
         cudnn.benchmark = True
