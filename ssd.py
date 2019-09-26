@@ -1,11 +1,12 @@
-import torch
-import torch.nn as nn
+import torch.nn            as nn
 import torch.nn.functional as F
-from torch.autograd import Variable
-from layers import *
-from data import voc, coco
-import os
 
+from data           import voc, coco, personnal
+from torch.autograd import Variable
+from layers         import *
+
+import torch
+import os
 
 class SSD(nn.Module):
     """Single Shot Multibox Architecture
@@ -29,7 +30,19 @@ class SSD(nn.Module):
         super(SSD, self).__init__()
         self.phase = phase
         self.num_classes = num_classes
-        self.cfg = (coco, voc)[num_classes == 21]
+
+        idx = -1
+
+        if   num_classes == 21 :      # voc
+            idx = 1
+
+        elif num_classes == 201 :     # coco
+            idx = 0
+
+        else :                        # personnal
+            idx = 2
+
+        self.cfg         = (coco, voc, personnal)[idx]    # Choix du bon cfg : coco | voc
         self.priorbox = PriorBox(self.cfg)
         self.priors = Variable(self.priorbox.forward(), volatile=True)
         self.size = size
@@ -70,24 +83,34 @@ class SSD(nn.Module):
         loc = list()
         conf = list()
 
+        ######################################################################## Application VGG -> conv4_3
         # apply vgg up to conv4_3 relu
         for k in range(23):
             x = self.vgg[k](x)
 
+        ######################################################################## Applications de la norme L2
         s = self.L2Norm(x)
+
+        ######################################################################## Ajout d'une feature map
         sources.append(s)
 
+        ######################################################################## Application VGG -> fin convolution
         # apply vgg up to fc7
         for k in range(23, len(self.vgg)):
             x = self.vgg[k](x)
+
+        ######################################################################## AJout d'une feature map
         sources.append(x)
 
+        ######################################################################## Application des extras layers (qui servent à downsample les features maps)
         # apply extra layers and cache source layer outputs
         for k, v in enumerate(self.extras):
             x = F.relu(v(x), inplace=True)
+            #################################################################### Ajout d'une feature map (tous les 2 layers)
             if k % 2 == 1:
                 sources.append(x)
 
+        ######################################################################## Applications des couches de détection/classification pour chaque feature map (dans sources)
         # apply multibox head to source layers
         for (x, l, c) in zip(sources, self.loc, self.conf):
             loc.append(l(x).permute(0, 2, 3, 1).contiguous())
@@ -110,6 +133,7 @@ class SSD(nn.Module):
             )
         return output
 
+
     def load_weights(self, base_file):
         other, ext = os.path.splitext(base_file)
         if ext == '.pkl' or '.pth':
@@ -120,7 +144,7 @@ class SSD(nn.Module):
         else:
             print('Sorry only .pth and .pkl files supported.')
 
-
+################################################################################ Création de la base du SSD : VGG (sans FC)
 # This function is derived from torchvision VGG make_layers()
 # https://github.com/pytorch/vision/blob/master/torchvision/models/vgg.py
 def vgg(cfg, i, batch_norm=False):
@@ -145,7 +169,7 @@ def vgg(cfg, i, batch_norm=False):
                nn.ReLU(inplace=True), conv7, nn.ReLU(inplace=True)]
     return layers
 
-
+################################################################################ Création des extras layers (pour downsample les feature maps)
 def add_extras(cfg, i, batch_norm=False):
     # Extra layers added to VGG for feature scaling
     layers = []
@@ -162,7 +186,7 @@ def add_extras(cfg, i, batch_norm=False):
         in_channels = v
     return layers
 
-
+################################################################################ Création des layers pour prédire les indices de confiance + les coordonnées des boxes)
 def multibox(vgg, extra_layers, cfg, num_classes):
     loc_layers = []
     conf_layers = []
